@@ -5,6 +5,7 @@ import { Toast, useToast } from '../components/Toast'
 import type { AppSettings, Product, Receipt, Client } from '../types'
 import { getSettings, saveSettings, getProducts, saveProduct, deleteProduct, getReceipts, getClients } from '../utils/db'
 import { exportBackup, importBackup } from '../utils/export'
+import { generateId } from '../utils/format'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -41,7 +42,7 @@ export function Settings() {
   async function handleAddProduct() {
     if (!newProduct.name.trim()) return
     const product: Product = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: newProduct.name.trim(),
       price: parseFloat(newProduct.price) || 0,
     }

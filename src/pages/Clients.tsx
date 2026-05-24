@@ -7,6 +7,7 @@ import { BottomSheet } from '../components/BottomSheet'
 import { Toast, useToast } from '../components/Toast'
 import type { Client, Receipt } from '../types'
 import { getClients, saveClient, deleteClient, getReceipts } from '../utils/db'
+import { generateId } from '../utils/format'
 
 export function Clients() {
   const { t } = useTranslation()
@@ -49,19 +50,23 @@ export function Clients() {
       showToast('נא להזין שם לקוח', 'error')
       return
     }
-    const client: Client = {
-      id: crypto.randomUUID(),
-      name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      notes: form.notes.trim(),
-      createdAt: Date.now(),
+    try {
+      const client: Client = {
+        id: generateId(),
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        notes: form.notes.trim(),
+        createdAt: Date.now(),
+      }
+      await saveClient(client)
+      setForm({ name: '', email: '', phone: '', notes: '' })
+      setShowAdd(false)
+      showToast(t('common.success'))
+      load()
+    } catch {
+      showToast('שגיאה בשמירת לקוח', 'error')
     }
-    await saveClient(client)
-    setForm({ name: '', email: '', phone: '', notes: '' })
-    setShowAdd(false)
-    showToast(t('common.success'))
-    load()
   }
 
   async function handleSaveNotes() {

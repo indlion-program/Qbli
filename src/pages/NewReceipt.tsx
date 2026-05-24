@@ -7,7 +7,7 @@ import { BottomSheet } from '../components/BottomSheet'
 import { Toast, useToast } from '../components/Toast'
 import type { Receipt, ReceiptItem, Client, Product, AppSettings } from '../types'
 import { getClients, getProducts, getSettings, saveSettings, saveReceipt, saveClient } from '../utils/db'
-import { formatCurrency, formatDate, padReceiptId } from '../utils/format'
+import { formatCurrency, formatDate, padReceiptId, generateId } from '../utils/format'
 import { shareByNative, shareByEmail, shareByWhatsApp } from '../utils/share'
 import { openReceiptWindow } from '../utils/pdf'
 
@@ -120,7 +120,7 @@ export function NewReceipt() {
     let clientId = selectedClientId
     if (!clientId && saveAsClient && clientName.trim()) {
       const newClient: Client = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name: clientName.trim(),
         email: clientEmail.trim(),
         phone: clientPhone.trim(),

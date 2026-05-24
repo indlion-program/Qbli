@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppSettings, Product } from '../types'
 import { saveSettings, saveProduct } from '../utils/db'
+import { generateId } from '../utils/format'
 
 interface OnboardingProps {
   onComplete: () => void
@@ -71,19 +72,22 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     setSaving(true)
     try {
       await saveSettings(settings)
-      const validProducts = products.filter(p => p.name.trim())
-      for (const p of validProducts) {
+    } catch {
+      setSaving(false)
+      return
+    }
+    const validProducts = products.filter(p => p.name.trim())
+    for (const p of validProducts) {
+      try {
         const product: Product = {
-          id: crypto.randomUUID(),
+          id: generateId(),
           name: p.name.trim(),
           price: parseFloat(p.price) || 0,
         }
         await saveProduct(product)
-      }
-      onComplete()
-    } catch {
-      setSaving(false)
+      } catch { /* best-effort */ }
     }
+    onComplete()
   }
 
   const steps = [

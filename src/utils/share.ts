@@ -1,4 +1,5 @@
 import type { Receipt, AppSettings } from '../types'
+import { generateReceiptPDFBlob } from './pdf'
 
 export function buildReceiptText(receipt: Receipt, settings: AppSettings): string {
   return (
@@ -27,33 +28,36 @@ export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string
  * Opens the OS mail app with receipt details pre-filled.
  */
 export function shareByEmail(receipt: Receipt, settings: AppSettings): void {
-  window.location.href = buildMailtoLink(receipt, settings)
+  const a = document.createElement('a')
+  a.href = buildMailtoLink(receipt, settings)
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 /**
  * Must be called directly from a click handler.
- * On Android/iOS opens the native OS share sheet (Gmail, WhatsApp, SMS, etc.)
+ * On Android/iOS generates a PDF and opens the native share sheet with the file attached.
  * Falls back to mailto on desktop.
  */
 export async function shareByNative(receipt: Receipt, settings: AppSettings): Promise<void> {
-  const text = buildReceiptText(receipt, settings)
-  if (typeof navigator.share === 'function') {
-    try {
+  try {
+    const blob = await generateReceiptPDFBlob(receipt, settings)
+    const file = new File([blob], `receipt-${receipt.id}.pdf`, { type: 'application/pdf' })
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
       await navigator.share({
+        files: [file],
         title: `קבלה מספר ${receipt.id} — ${settings.bizName}`,
-        text,
+        text: buildReceiptText(receipt, settings),
       })
-    } catch (err) {
-      // User cancelled (AbortError) — do nothing
-      if (err instanceof Error && err.name !== 'AbortError') {
-        // Real error — fall back to mailto
-        shareByEmail(receipt, settings)
-      }
+      return
     }
-  } else {
-    // Desktop: no Web Share API
-    shareByEmail(receipt, settings)
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return
+    // PDF generation or share failed — fall through to mailto
   }
+  shareByEmail(receipt, settings)
 }
 
 /**
