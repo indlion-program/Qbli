@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\lagol\\\\Documents\\\\buisness\\\\Qbli\" -Recurse -Force | Where-Object { -not $_.PSIsContainer } | Select-Object FullName)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
