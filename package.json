@@ -13,6 +13,8 @@
     "deploy": "npm run build:pwa && vercel --prod"
   },
   "dependencies": {
+    "@sentry/react": "^10.54.0",
+    "html2canvas": "^1.4.1",
     "i18next": "^23.11.5",
     "idb": "^8.0.0",
     "jspdf": "^2.5.1",

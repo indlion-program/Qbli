@@ -1,4 +1,6 @@
 import type { Receipt, AppSettings } from '../types'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
 
 export function generateReceiptHTML(receipt: Receipt, settings: AppSettings): string {
   const itemRows = receipt.items
@@ -159,6 +161,63 @@ export function generateReceiptHTML(receipt: Receipt, settings: AppSettings): st
   </script>
 </body>
 </html>`
+}
+
+export async function generateReceiptPDFBlob(receipt: Receipt, settings: AppSettings): Promise<Blob> {
+  const fullHtml = generateReceiptHTML(receipt, settings)
+  const parsed = new DOMParser().parseFromString(fullHtml, 'text/html')
+
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:680px;background:#fff;padding:32px 24px'
+  container.dir = 'rtl'
+
+  // Copy styles from the generated HTML's <head>
+  parsed.querySelectorAll('style').forEach(s => {
+    const styleEl = document.createElement('style')
+    styleEl.textContent = s.textContent
+    container.appendChild(styleEl)
+  })
+
+  // Copy body content but skip the print-button div and auto-print script
+  parsed.body.querySelectorAll(':scope > *').forEach(el => {
+    if (el.classList.contains('no-print') || el.tagName === 'SCRIPT') return
+    container.appendChild(el.cloneNode(true))
+  })
+
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false })
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
+    const margin = 10
+    const imgW = pageW - margin * 2
+    const imgH = (canvas.height * imgW) / canvas.width
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    let srcY = 0
+    let remaining = imgH
+    let first = true
+
+    while (remaining > 0) {
+      if (!first) doc.addPage()
+      const sliceH = Math.min(remaining, pageH - margin * 2)
+      const sliceCanvas = document.createElement('canvas')
+      sliceCanvas.width = canvas.width
+      sliceCanvas.height = Math.round((sliceH / imgW) * canvas.width)
+      const ctx = sliceCanvas.getContext('2d')!
+      ctx.drawImage(canvas, 0, Math.round((srcY / imgW) * canvas.width), canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height)
+      doc.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceH)
+      srcY += sliceH
+      remaining -= sliceH
+      first = false
+    }
+
+    return doc.output('blob')
+  } finally {
+    document.body.removeChild(container)
+  }
 }
 
 export function openReceiptWindow(receipt: Receipt, settings: AppSettings): void {
