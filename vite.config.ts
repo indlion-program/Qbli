@@ -2,10 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const base = process.env.GITHUB_PAGES === 'true' ? '/qbli/' : '/'
-
 export default defineConfig({
-  base,
   server: {
     host: true,
     port: 5173,
@@ -24,8 +21,8 @@ export default defineConfig({
         orientation: 'portrait',
         lang: 'he',
         dir: 'rtl',
-        start_url: base,
-        scope: base,
+        start_url: '/',
+        scope: '/',
         categories: ['business', 'finance', 'productivity'],
         icons: [
           {
