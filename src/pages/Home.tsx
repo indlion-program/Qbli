@@ -162,8 +162,8 @@ export function Home() {
               <button
                 onClick={async () => {
                   if (!settings) return
-                  const email = await shareByEmail(selected, settings)
-                  if (email) showToast(`📧 ${email} הועתק — בחר אפליקציית מייל`, 'success')
+                  await shareByEmail(selected, settings)
+                  showToast('📥 PDF נשמר — הוסף אותו כקובץ מצורף במייל', 'success')
                 }}
                 className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
               >
