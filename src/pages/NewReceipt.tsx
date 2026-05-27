@@ -311,33 +311,45 @@ export function NewReceipt() {
               <p className="text-xs text-green-600">סה"כ: {formatCurrency(createdReceipt.total)}</p>
             </div>
 
-            {/* Primary: OS native share sheet on mobile, mailto on desktop */}
             <button
-              onClick={async () => await shareByNative(createdReceipt, settings)}
-              className="w-full bg-primary text-white rounded-lg py-3.5 text-sm font-semibold flex items-center justify-center gap-2"
+              onClick={async () => {
+                if (createdReceipt.clientEmail && navigator.clipboard) {
+                  await navigator.clipboard.writeText(createdReceipt.clientEmail).catch(() => {})
+                  showToast(t('share.emailCopied'), 'info', 5000)
+                }
+                await shareByNative(createdReceipt, settings)
+              }}
+              className="w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
             >
-              <span>📤</span> שתף קבלה
+              <span>📤</span> {t('receipt.share')}
             </button>
 
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => openReceiptWindow(createdReceipt, settings)}
-                className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
+                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
               >
                 🖨️ PDF
               </button>
               <button
                 onClick={async () => {
-                  const email = await shareByEmail(createdReceipt, settings)
-                  if (email) showToast(`📧 המייל הועתק ללוח\nבחר Gmail — ה-PDF מצורף`, 'success', 4000)
+                  if (!createdReceipt.clientEmail) {
+                    showToast(t('share.noEmail'), 'error', 3000)
+                    return
+                  }
+                  if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(createdReceipt.clientEmail).catch(() => {})
+                  }
+                  showToast(t('share.emailCopied'), 'info', 5000)
+                  await shareByEmail(createdReceipt, settings)
                 }}
-                className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
+                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
               >
-                📧 מייל
+                📧 {t('share.email')}
               </button>
               <button
                 onClick={() => shareByWhatsApp(createdReceipt)}
-                className="bg-[#25D366] text-white rounded-lg py-3 text-xs font-medium"
+                className="bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium"
               >
                 💬 WA
               </button>
