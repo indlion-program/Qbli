@@ -109,8 +109,41 @@ export function Home() {
         title={selected ? `קבלה #${selected.id}` : ''}
       >
         {selected && (
-          <div className="flex flex-col gap-4">
-            {/* Receipt HTML preview */}
+          <div className="flex flex-col gap-3">
+            {/* Share buttons — at the top so no scrolling needed */}
+            <button
+              onClick={async () => { if (settings) await shareByNative(selected, settings) }}
+              className="w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
+            >
+              <span>📤</span> שתף קבלה
+            </button>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={handleOpenReceipt}
+                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+              >
+                🖨️ PDF
+              </button>
+              <button
+                onClick={async () => {
+                  if (!settings) return
+                  const email = await shareByEmail(selected, settings)
+                  if (email) showToast(`📧 המייל הועתק ללוח\nבחר Gmail — ה-PDF מצורף`, 'success', 4000)
+                }}
+                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+              >
+                📧 מייל
+              </button>
+              <button
+                onClick={() => shareByWhatsApp(selected)}
+                className="bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium"
+              >
+                💬 WA
+              </button>
+            </div>
+
+            {/* Receipt preview */}
             <div className="bg-gray-50 rounded-xl p-4 text-sm">
               <div className="flex justify-between mb-3">
                 <span className="text-gray-500">לקוח</span>
@@ -143,43 +176,9 @@ export function Home() {
               )}
             </div>
 
-            {/* Action buttons */}
-            {/* Primary: native share sheet on mobile, mailto on desktop */}
-            <button
-              onClick={async () => { if (settings) await shareByNative(selected, settings) }}
-              className="w-full bg-primary text-white rounded-lg py-3.5 text-sm font-semibold flex items-center justify-center gap-2"
-            >
-              <span>📤</span> שתף קבלה
-            </button>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={handleOpenReceipt}
-                className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
-              >
-                🖨️ PDF
-              </button>
-              <button
-                onClick={async () => {
-                  if (!settings) return
-                  const email = await shareByEmail(selected, settings)
-                  if (email) showToast(`📧 ${email} הועתק — בחר אפליקציית מייל`, 'success')
-                }}
-                className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
-              >
-                📧 מייל
-              </button>
-              <button
-                onClick={() => shareByWhatsApp(selected)}
-                className="bg-[#25D366] text-white rounded-lg py-3 text-xs font-medium"
-              >
-                💬 WA
-              </button>
-            </div>
-
             <button
               onClick={() => setConfirmDelete(true)}
-              className="w-full border border-red-200 text-red-500 rounded-lg py-3 text-sm font-medium"
+              className="w-full border border-red-200 text-red-500 rounded-xl py-3 text-sm font-medium"
             >
               {t('receipt.delete')}
             </button>

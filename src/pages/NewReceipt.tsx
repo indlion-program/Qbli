@@ -329,7 +329,7 @@ export function NewReceipt() {
               <button
                 onClick={async () => {
                   const email = await shareByEmail(createdReceipt, settings)
-                  if (email) showToast(`📧 ${email} הועתק — בחר אפליקציית מייל`, 'success')
+                  if (email) showToast(`📧 המייל הועתק ללוח\nבחר Gmail — ה-PDF מצורף`, 'success', 4000)
                 }}
                 className="border border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-medium"
               >

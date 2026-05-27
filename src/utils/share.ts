@@ -16,10 +16,39 @@ export function buildReceiptText(receipt: Receipt, settings: AppSettings): strin
 }
 
 export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string {
-  const subject = encodeURIComponent(`קבלה מספר ${receipt.id} - ${settings.bizName}`)
+  const subject = encodeURIComponent(`קבלה מספר ${receipt.id} — ${settings.bizName}`)
+
+  const itemLines = receipt.items
+    .map(i => `  • ${i.desc}   ${i.qty} × ₪${i.price.toFixed(2)}   =   ₪${(i.qty * i.price).toFixed(2)}`)
+    .join('\n')
+
+  const discountLine = receipt.discount > 0
+    ? `  • הנחה:   -₪${receipt.discount.toFixed(2)}\n`
+    : ''
+
+  const contactLines = [
+    settings.ownerName,
+    settings.bizName,
+    settings.phone,
+    settings.email,
+    settings.address,
+  ].filter(Boolean).join(' | ')
+
   const body = encodeURIComponent(
-    `שלום ${receipt.clientName},\n\n` + buildReceiptText(receipt, settings)
+    `שלום ${receipt.clientName},\n\n` +
+    `מצורפת קבלה עבור הרכישה שביצעת.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `קבלה מספר ${receipt.id}\n` +
+    `תאריך: ${receipt.date}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `${itemLines}\n` +
+    `${discountLine}\n` +
+    `סה"כ לתשלום:   ₪${receipt.total.toFixed(2)}\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `${contactLines}\n\n` +
+    `תודה על הבחירה בנו!`
   )
+
   return `mailto:${receipt.clientEmail}?subject=${subject}&body=${body}`
 }
 
