@@ -23,26 +23,32 @@ export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string
   return `mailto:${receipt.clientEmail}?subject=${subject}&body=${body}`
 }
 
-export async function shareByEmail(receipt: Receipt, settings: AppSettings): Promise<void> {
-  const blob = await generateReceiptPDFBlob(receipt, settings)
+export async function shareByEmail(receipt: Receipt, settings: AppSettings): Promise<string | null> {
+  let copiedEmail: string | null = null
 
-  // Auto-download the PDF to the device
-  const pdfUrl = URL.createObjectURL(blob)
-  const dl = document.createElement('a')
-  dl.href = pdfUrl
-  dl.download = `receipt-${receipt.id}.pdf`
-  document.body.appendChild(dl)
-  dl.click()
-  document.body.removeChild(dl)
-  setTimeout(() => URL.revokeObjectURL(pdfUrl), 2000)
+  if (receipt.clientEmail && navigator.clipboard) {
+    await navigator.clipboard.writeText(receipt.clientEmail).catch(() => {})
+    copiedEmail = receipt.clientEmail
+  }
 
-  // Open mail app with recipient, subject and body pre-filled
+  try {
+    const blob = await generateReceiptPDFBlob(receipt, settings)
+    const file = new File([blob], `receipt-${receipt.id}.pdf`, { type: 'application/pdf' })
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: `קבלה מספר ${receipt.id} — ${settings.bizName}` })
+      return copiedEmail
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return copiedEmail
+  }
+
   const a = document.createElement('a')
   a.href = buildMailtoLink(receipt, settings)
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+  return copiedEmail
 }
 
 /**
