@@ -24,6 +24,22 @@
     <title>Qbli — קבלות חכמות לעסקים קטנים</title>
   </head>
   <body>
+    <script>
+      // Restore path from GitHub Pages 404 redirect
+      (function () {
+        var p = window.location.search.match(/[?&]p=([^&]*)/);
+        if (p) {
+          var q = window.location.search.match(/[?&]q=([^&]*)/);
+          window.history.replaceState(
+            null, null,
+            window.location.pathname +
+            '/' + decodeURIComponent(p[1].replace(/~and~/g, '&')) +
+            (q ? '?' + decodeURIComponent(q[1].replace(/~and~/g, '&')) : '') +
+            window.location.hash
+          );
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
