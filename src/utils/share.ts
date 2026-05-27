@@ -23,17 +23,32 @@ export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string
   return `mailto:${receipt.clientEmail}?subject=${subject}&body=${body}`
 }
 
-/**
- * Must be called directly from a click handler (user gesture required).
- * Opens the OS mail app with receipt details pre-filled.
- */
-export function shareByEmail(receipt: Receipt, settings: AppSettings): void {
+export async function shareByEmail(receipt: Receipt, settings: AppSettings): Promise<string | null> {
+  let copiedEmail: string | null = null
+
+  if (receipt.clientEmail && navigator.clipboard) {
+    await navigator.clipboard.writeText(receipt.clientEmail).catch(() => {})
+    copiedEmail = receipt.clientEmail
+  }
+
+  try {
+    const blob = await generateReceiptPDFBlob(receipt, settings)
+    const file = new File([blob], `receipt-${receipt.id}.pdf`, { type: 'application/pdf' })
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: `קבלה מספר ${receipt.id} — ${settings.bizName}` })
+      return copiedEmail
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return copiedEmail
+  }
+
   const a = document.createElement('a')
   a.href = buildMailtoLink(receipt, settings)
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+  return copiedEmail
 }
 
 /**
