@@ -1,29 +1,32 @@
 import type { Receipt, AppSettings } from '../types'
 import { generateReceiptPDFBlob } from './pdf'
+import i18n from '../i18n'
+
+function t(key: string): string {
+  return i18n.t(key) as string
+}
 
 export function buildReceiptText(receipt: Receipt, settings: AppSettings): string {
   return (
-    `קבלה מספר ${receipt.id} מ-${settings.bizName}\n` +
-    `תאריך: ${receipt.date}\n\n` +
+    `${t('share.receiptNumber')} ${receipt.id} — ${settings.bizName}\n` +
+    `${t('share.date')}: ${receipt.date}\n\n` +
     receipt.items
       .map(i => `• ${i.desc} × ${i.qty}   ₪${(i.qty * i.price).toFixed(2)}`)
       .join('\n') +
-    (receipt.discount > 0 ? `\n• הנחה: -₪${receipt.discount.toFixed(2)}` : '') +
-    `\n\nסה"כ לתשלום: ₪${receipt.total.toFixed(2)}\n` +
+    (receipt.discount > 0 ? `\n• ${t('share.discount')}: -₪${receipt.discount.toFixed(2)}` : '') +
+    `\n\n${t('share.totalDue')}: ₪${receipt.total.toFixed(2)}\n` +
     `${settings.ownerName} · ${settings.bizName}` +
     (settings.phone ? ` · ${settings.phone}` : '')
   )
 }
 
-export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string {
-  const subject = encodeURIComponent(`קבלה מספר ${receipt.id} — ${settings.bizName}`)
-
+function buildEmailBody(receipt: Receipt, settings: AppSettings): string {
   const itemLines = receipt.items
-    .map(i => `  • ${i.desc}   ${i.qty} × ₪${i.price.toFixed(2)}   =   ₪${(i.qty * i.price).toFixed(2)}`)
+    .map(i => `  • ${i.desc}   ${i.qty} × ₪${i.price.toFixed(2)} = ₪${(i.qty * i.price).toFixed(2)}`)
     .join('\n')
 
   const discountLine = receipt.discount > 0
-    ? `  • הנחה:   -₪${receipt.discount.toFixed(2)}\n`
+    ? `  • ${t('share.discount')}: -₪${receipt.discount.toFixed(2)}\n`
     : ''
 
   const contactLines = [
@@ -34,57 +37,58 @@ export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string
     settings.address,
   ].filter(Boolean).join(' | ')
 
-  const body = encodeURIComponent(
-    `שלום ${receipt.clientName},\n\n` +
-    `מצורפת קבלה עבור הרכישה שביצעת.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `קבלה מספר ${receipt.id}\n` +
-    `תאריך: ${receipt.date}\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+  return (
+    `${t('share.greeting')} ${receipt.clientName},\n\n` +
+    `${t('share.attachedReceipt')}\n\n` +
+    `--------------------\n` +
+    `${t('share.receiptNumber')} ${receipt.id}\n` +
+    `${t('share.date')}: ${receipt.date}\n` +
+    `--------------------\n\n` +
     `${itemLines}\n` +
     `${discountLine}\n` +
-    `סה"כ לתשלום:   ₪${receipt.total.toFixed(2)}\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `${t('share.totalDue')}: ₪${receipt.total.toFixed(2)}\n\n` +
+    `--------------------\n` +
     `${contactLines}\n\n` +
-    `תודה על הבחירה בנו!`
+    `${t('share.thanks')}`
   )
+}
 
+export function buildMailtoLink(receipt: Receipt, settings: AppSettings): string {
+  const isHe = i18n.language !== 'en'
+  const subject = encodeURIComponent(
+    isHe
+      ? `קבלה מספר ${receipt.id} — ${settings.bizName}`
+      : `Receipt #${receipt.id} — ${settings.bizName}`
+  )
+  const body = encodeURIComponent(buildEmailBody(receipt, settings))
   return `mailto:${receipt.clientEmail}?subject=${subject}&body=${body}`
 }
 
-export async function shareByEmail(receipt: Receipt, settings: AppSettings): Promise<string | null> {
-  let copiedEmail: string | null = null
-
-  if (receipt.clientEmail && navigator.clipboard) {
-    await navigator.clipboard.writeText(receipt.clientEmail).catch(() => {})
-    copiedEmail = receipt.clientEmail
-  }
-
+export async function shareByEmail(receipt: Receipt, settings: AppSettings): Promise<void> {
   try {
     const blob = await generateReceiptPDFBlob(receipt, settings)
     const file = new File([blob], `receipt-${receipt.id}.pdf`, { type: 'application/pdf' })
     if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: `קבלה מספר ${receipt.id} — ${settings.bizName}` })
-      return copiedEmail
+      await navigator.share({
+        files: [file],
+        title: `${t('share.receiptNumber')} ${receipt.id} — ${settings.bizName}`,
+        text: buildEmailBody(receipt, settings),
+      })
+      return
     }
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') return copiedEmail
+    if (err instanceof Error && err.name === 'AbortError') return
   }
 
+  // Fallback: pre-filled mailto (desktop / no share API)
   const a = document.createElement('a')
   a.href = buildMailtoLink(receipt, settings)
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  return copiedEmail
 }
 
-/**
- * Must be called directly from a click handler.
- * On Android/iOS generates a PDF and opens the native share sheet with the file attached.
- * Falls back to mailto on desktop.
- */
 export async function shareByNative(receipt: Receipt, settings: AppSettings): Promise<void> {
   try {
     const blob = await generateReceiptPDFBlob(receipt, settings)
@@ -92,31 +96,27 @@ export async function shareByNative(receipt: Receipt, settings: AppSettings): Pr
     if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: `קבלה מספר ${receipt.id} — ${settings.bizName}`,
+        title: `${t('share.receiptNumber')} ${receipt.id} — ${settings.bizName}`,
         text: buildReceiptText(receipt, settings),
       })
       return
     }
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') return
-    // PDF generation or share failed — fall through to mailto
   }
   shareByEmail(receipt, settings)
 }
 
-/**
- * Must be called directly from a click handler.
- */
 export function shareByWhatsApp(receipt: Receipt): void {
   const text = encodeURIComponent(
-    `שלום ${receipt.clientName} 👋\n` +
-    `קבלה מספר ${receipt.id}\n` +
-    `תאריך: ${receipt.date}\n\n` +
+    `${t('share.greeting')} ${receipt.clientName} 👋\n` +
+    `${t('share.receiptNumber')} ${receipt.id}\n` +
+    `${t('share.date')}: ${receipt.date}\n\n` +
     receipt.items
       .map(i => `• ${i.desc} × ${i.qty} — ₪${(i.qty * i.price).toFixed(2)}`)
       .join('\n') +
-    (receipt.discount > 0 ? `\n• הנחה: -₪${receipt.discount.toFixed(2)}` : '') +
-    `\n\n*סה"כ לתשלום: ₪${receipt.total.toFixed(2)}*`
+    (receipt.discount > 0 ? `\n• ${t('share.discount')}: -₪${receipt.discount.toFixed(2)}` : '') +
+    `\n\n*${t('share.totalDue')}: ₪${receipt.total.toFixed(2)}*`
   )
 
   let phone = ''

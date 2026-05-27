@@ -112,10 +112,17 @@ export function Home() {
           <div className="flex flex-col gap-3">
             {/* Share buttons — at the top so no scrolling needed */}
             <button
-              onClick={async () => { if (settings) await shareByNative(selected, settings) }}
+              onClick={async () => {
+                if (!settings) return
+                if (selected.clientEmail && navigator.clipboard) {
+                  await navigator.clipboard.writeText(selected.clientEmail).catch(() => {})
+                  showToast(t('share.emailCopied'), 'info', 5000)
+                }
+                await shareByNative(selected, settings)
+              }}
               className="w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
             >
-              <span>📤</span> שתף קבלה
+              <span>📤</span> {t('receipt.share')}
             </button>
 
             <div className="grid grid-cols-3 gap-2">
@@ -128,12 +135,19 @@ export function Home() {
               <button
                 onClick={async () => {
                   if (!settings) return
-                  const email = await shareByEmail(selected, settings)
-                  if (email) showToast(`📧 המייל הועתק ללוח\nבחר Gmail — ה-PDF מצורף`, 'success', 4000)
+                  if (!selected.clientEmail) {
+                    showToast(t('share.noEmail'), 'error', 3000)
+                    return
+                  }
+                  if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(selected.clientEmail).catch(() => {})
+                  }
+                  showToast(t('share.emailCopied'), 'info', 5000)
+                  await shareByEmail(selected, settings)
                 }}
                 className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
               >
-                📧 מייל
+                📧 {t('share.email')}
               </button>
               <button
                 onClick={() => shareByWhatsApp(selected)}

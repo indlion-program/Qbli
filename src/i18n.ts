@@ -38,6 +38,16 @@ const he = {
   share: {
     email: 'שלח במייל',
     whatsapp: 'שלח בוואטסאפ',
+    emailCopied: 'המייל הועתק ללוח\nבחר Gmail — ה-PDF מצורף',
+    noEmail: 'ללקוח אין כתובת מייל',
+    receiptFor: 'קבלה עבור',
+    greeting: 'שלום',
+    attachedReceipt: 'מצורפת קבלה עבור הרכישה שביצעת.',
+    receiptNumber: 'קבלה מספר',
+    date: 'תאריך',
+    discount: 'הנחה',
+    totalDue: 'סה"כ לתשלום',
+    thanks: 'תודה על הבחירה בנו!',
   },
   settings: {
     bizName: 'שם העסק',
@@ -138,6 +148,16 @@ const en: typeof he = {
   share: {
     email: 'Send by email',
     whatsapp: 'Send via WhatsApp',
+    emailCopied: 'Email copied to clipboard\nPick Gmail — PDF is attached',
+    noEmail: 'This client has no email address',
+    receiptFor: 'Receipt for',
+    greeting: 'Hello',
+    attachedReceipt: 'Please find your receipt attached.',
+    receiptNumber: 'Receipt #',
+    date: 'Date',
+    discount: 'Discount',
+    totalDue: 'Total due',
+    thanks: 'Thank you for your business!',
   },
   settings: {
     bizName: 'Business Name',
