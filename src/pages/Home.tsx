@@ -21,6 +21,7 @@ export function Home() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [selected, setSelected] = useState<Receipt | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const [r, c, s] = await Promise.all([getReceipts(), getClients(), getSettings()])
@@ -54,6 +55,16 @@ export function Home() {
   function handleOpenReceipt() {
     if (!selected || !settings) return
     openReceiptWindow(selected, settings)
+  }
+
+  async function copyAndShare(email: string | undefined, shareFn: () => Promise<void>) {
+    if (email && navigator.clipboard) {
+      await navigator.clipboard.writeText(email).catch(() => {})
+      setCopiedEmail(email)
+    }
+    await new Promise(r => setTimeout(r, 700))
+    await shareFn()
+    setCopiedEmail(null)
   }
 
   return (
@@ -114,21 +125,20 @@ export function Home() {
             <button
               onClick={async () => {
                 if (!settings) return
-                if (selected.clientEmail && navigator.clipboard) {
-                  await navigator.clipboard.writeText(selected.clientEmail).catch(() => {})
-                  showToast(t('share.emailCopied'), 'info', 5000)
-                }
-                await shareByNative(selected, settings)
+                await copyAndShare(selected.clientEmail, () => shareByNative(selected, settings))
               }}
-              className="w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
+              className={`w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm relative transition-all duration-300 ${copiedEmail ? 'animate-pulse' : ''}`}
             >
               <span>📤</span> {t('receipt.share')}
+              {copiedEmail && (
+                <span className="absolute right-3 text-xs bg-white/20 rounded-full px-2 py-0.5 animate-bounce">📋</span>
+              )}
             </button>
 
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleOpenReceipt}
-                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+                className={`border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium ${copiedEmail ? 'hidden' : ''}`}
               >
                 🖨️ PDF
               </button>
@@ -139,19 +149,22 @@ export function Home() {
                     showToast(t('share.noEmail'), 'error', 3000)
                     return
                   }
-                  if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(selected.clientEmail).catch(() => {})
-                  }
-                  showToast(t('share.emailCopied'), 'info', 5000)
-                  await shareByEmail(selected, settings)
+                  await copyAndShare(selected.clientEmail, () => shareByEmail(selected, settings))
                 }}
-                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+                className={`rounded-xl py-3 text-xs font-medium transition-all duration-300 ${
+                  copiedEmail
+                    ? 'col-span-3 bg-green-500 text-white animate-pulse'
+                    : 'border border-gray-200 text-gray-600'
+                }`}
               >
-                📧 {t('share.email')}
+                {copiedEmail
+                  ? `📋 ${copiedEmail.length > 22 ? copiedEmail.slice(0, 20) + '…' : copiedEmail} ✓`
+                  : `📧 ${t('share.email')}`
+                }
               </button>
               <button
                 onClick={() => shareByWhatsApp(selected)}
-                className="bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium"
+                className={`bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium ${copiedEmail ? 'hidden' : ''}`}
               >
                 💬 WA
               </button>

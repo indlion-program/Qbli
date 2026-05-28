@@ -32,6 +32,7 @@ export function NewReceipt() {
   const [notes, setNotes] = useState('')
 
   const [createdReceipt, setCreatedReceipt] = useState<Receipt | null>(null)
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
 
   // Extract primitive string once — stable across renders (won't trigger infinite loop)
   const clientIdParam = searchParams.get('clientId')
@@ -150,6 +151,16 @@ export function NewReceipt() {
     await saveSettings({ ...settings, nextReceiptNum: settings.nextReceiptNum + 1 })
     setCreatedReceipt(receipt)
     setSettings(prev => prev ? { ...prev, nextReceiptNum: prev.nextReceiptNum + 1 } : prev)
+  }
+
+  async function copyAndShare(email: string | undefined, shareFn: () => Promise<void>) {
+    if (email && navigator.clipboard) {
+      await navigator.clipboard.writeText(email).catch(() => {})
+      setCopiedEmail(email)
+    }
+    await new Promise(r => setTimeout(r, 700))
+    await shareFn()
+    setCopiedEmail(null)
   }
 
   const productNames = products.map(p => p.name)
@@ -313,21 +324,20 @@ export function NewReceipt() {
 
             <button
               onClick={async () => {
-                if (createdReceipt.clientEmail && navigator.clipboard) {
-                  await navigator.clipboard.writeText(createdReceipt.clientEmail).catch(() => {})
-                  showToast(t('share.emailCopied'), 'info', 5000)
-                }
-                await shareByNative(createdReceipt, settings)
+                await copyAndShare(createdReceipt.clientEmail, () => shareByNative(createdReceipt, settings))
               }}
-              className="w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
+              className={`w-full bg-primary text-white rounded-xl py-4 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm relative transition-all duration-300 ${copiedEmail ? 'animate-pulse' : ''}`}
             >
               <span>📤</span> {t('receipt.share')}
+              {copiedEmail && (
+                <span className="absolute right-3 text-xs bg-white/20 rounded-full px-2 py-0.5 animate-bounce">📋</span>
+              )}
             </button>
 
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => openReceiptWindow(createdReceipt, settings)}
-                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+                className={`border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium ${copiedEmail ? 'hidden' : ''}`}
               >
                 🖨️ PDF
               </button>
@@ -337,19 +347,22 @@ export function NewReceipt() {
                     showToast(t('share.noEmail'), 'error', 3000)
                     return
                   }
-                  if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(createdReceipt.clientEmail).catch(() => {})
-                  }
-                  showToast(t('share.emailCopied'), 'info', 5000)
-                  await shareByEmail(createdReceipt, settings)
+                  await copyAndShare(createdReceipt.clientEmail, () => shareByEmail(createdReceipt, settings))
                 }}
-                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium"
+                className={`rounded-xl py-3 text-xs font-medium transition-all duration-300 ${
+                  copiedEmail
+                    ? 'col-span-3 bg-green-500 text-white animate-pulse'
+                    : 'border border-gray-200 text-gray-600'
+                }`}
               >
-                📧 {t('share.email')}
+                {copiedEmail
+                  ? `📋 ${copiedEmail.length > 22 ? copiedEmail.slice(0, 20) + '…' : copiedEmail} ✓`
+                  : `📧 ${t('share.email')}`
+                }
               </button>
               <button
                 onClick={() => shareByWhatsApp(createdReceipt)}
-                className="bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium"
+                className={`bg-[#25D366] text-white rounded-xl py-3 text-xs font-medium ${copiedEmail ? 'hidden' : ''}`}
               >
                 💬 WA
               </button>
