@@ -2,6 +2,93 @@ import type { Receipt, AppSettings } from '../types'
 import { generateReceiptPDFBlob } from './pdf'
 import i18n from '../i18n'
 
+export type EmailResult =
+  | { ok: true; remaining: number }
+  | { ok: false; quota: true; checkoutUrl: string }
+  | { ok: false; quota: false }
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+export async function sendEmailDirect(receipt: Receipt, settings: AppSettings): Promise<EmailResult> {
+  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
+  if (!workerUrl) {
+    await shareByEmail(receipt, settings)
+    return { ok: true, remaining: 7 }
+  }
+
+  let pdfBase64: string
+  try {
+    const blob = await generateReceiptPDFBlob(receipt, settings)
+    pdfBase64 = await blobToBase64(blob)
+  } catch {
+    return { ok: false, quota: false }
+  }
+
+  const isHe = i18n.language !== 'en'
+  const subject = isHe
+    ? `קבלה מספר ${receipt.id} — ${settings.bizName}`
+    : `Receipt #${receipt.id} — ${settings.bizName}`
+
+  let res: Response
+  try {
+    res = await fetch(`${workerUrl}/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessId: settings.businessId,
+        to: receipt.clientEmail,
+        subject,
+        bodyText: buildEmailBody(receipt, settings),
+        pdfBase64,
+        pdfFilename: `receipt-${receipt.id}.pdf`,
+      }),
+    })
+  } catch {
+    return { ok: false, quota: false }
+  }
+
+  if (res.status === 402) {
+    const data = await res.json() as { checkoutUrl: string }
+    return { ok: false, quota: true, checkoutUrl: data.checkoutUrl }
+  }
+  if (!res.ok) return { ok: false, quota: false }
+
+  const data = await res.json() as { weeklyRemaining: number }
+  return { ok: true, remaining: data.weeklyRemaining }
+}
+
+export async function getQuotaStatus(businessId: string): Promise<{ isPro: boolean; weeklyCount: number; weeklyRemaining: number } | null> {
+  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
+  if (!workerUrl) return null
+  try {
+    const res = await fetch(`${workerUrl}/status?businessId=${encodeURIComponent(businessId)}`)
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function getCheckoutUrl(businessId: string): Promise<string | null> {
+  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
+  if (!workerUrl) return null
+  try {
+    const res = await fetch(`${workerUrl}/checkout?businessId=${encodeURIComponent(businessId)}`)
+    if (!res.ok) return null
+    const data = await res.json() as { checkoutUrl: string }
+    return data.checkoutUrl
+  } catch {
+    return null
+  }
+}
+
 function t(key: string): string {
   return i18n.t(key) as string
 }

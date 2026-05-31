@@ -8,7 +8,8 @@ import { Toast, useToast } from '../components/Toast'
 import type { Receipt, ReceiptItem, Client, Product, AppSettings } from '../types'
 import { getClients, getProducts, getSettings, saveSettings, saveReceipt, saveClient } from '../utils/db'
 import { formatCurrency, formatDate, padReceiptId, generateId } from '../utils/format'
-import { shareByNative, shareByEmail, shareByWhatsApp } from '../utils/share'
+import { shareByNative, shareByWhatsApp, sendEmailDirect } from '../utils/share'
+import { PaywallSheet } from '../components/PaywallSheet'
 import { openReceiptWindow } from '../utils/pdf'
 
 export function NewReceipt() {
@@ -33,6 +34,9 @@ export function NewReceipt() {
 
   const [createdReceipt, setCreatedReceipt] = useState<Receipt | null>(null)
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
+  const [emailSending, setEmailSending] = useState(false)
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const [paywallCheckoutUrl, setPaywallCheckoutUrl] = useState<string | undefined>()
 
   // Extract primitive string once — stable across renders (won't trigger infinite loop)
   const clientIdParam = searchParams.get('clientId')
@@ -347,18 +351,22 @@ export function NewReceipt() {
                     showToast(t('share.noEmail'), 'error', 3000)
                     return
                   }
-                  await copyAndShare(createdReceipt.clientEmail, () => shareByEmail(createdReceipt, settings))
+                  setEmailSending(true)
+                  const result = await sendEmailDirect(createdReceipt, settings)
+                  setEmailSending(false)
+                  if (result.ok) {
+                    showToast(t('paywall.sent', { email: createdReceipt.clientEmail }), 'success', 3000)
+                  } else if (result.quota) {
+                    setPaywallCheckoutUrl(result.checkoutUrl)
+                    setPaywallOpen(true)
+                  } else {
+                    showToast(t('paywall.sendFailed'), 'error', 3000)
+                  }
                 }}
-                className={`rounded-xl py-3 text-xs font-medium transition-all duration-300 ${
-                  copiedEmail
-                    ? 'col-span-3 bg-green-500 text-white animate-pulse'
-                    : 'border border-gray-200 text-gray-600'
-                }`}
+                disabled={emailSending}
+                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium disabled:opacity-60"
               >
-                {copiedEmail
-                  ? `📋 ${copiedEmail.length > 22 ? copiedEmail.slice(0, 20) + '…' : copiedEmail} ✓`
-                  : `📧 ${t('share.email')}`
-                }
+                {emailSending ? `⏳` : `📧 ${t('share.email')}`}
               </button>
               <button
                 onClick={() => shareByWhatsApp(createdReceipt)}
@@ -377,6 +385,16 @@ export function NewReceipt() {
           </div>
         )}
       </BottomSheet>
+
+      {settings && (
+        <PaywallSheet
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          businessId={settings.businessId}
+          weeklyCount={7}
+          initialCheckoutUrl={paywallCheckoutUrl}
+        />
+      )}
     </div>
   )
 }
