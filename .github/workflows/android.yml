@@ -104,26 +104,70 @@ jobs:
           echo "SDK=$SDK"
           ls "$SDK/build-tools" 2>/dev/null || echo "(no build-tools dir yet)"
 
-      - name: Restore signing keystore
+      # apksigner reports a wrong alias and an alias with no key identically
+      # ("entry ... does not contain a key"), because KeyStore.getKey returns null
+      # for both. Resolve the alias against the keystore here so that failure is
+      # diagnosed up front rather than 60 seconds later at the signing step.
+      - name: Restore and verify signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android.keystore
+          set -euo pipefail
+
+          # tr -d strips any stray whitespace or newlines introduced when the
+          # base64 was pasted into the secret.
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android.keystore
           # Never let the key reach an artifact or a commit.
           echo "android.keystore" >> .git/info/exclude
+
+          SIZE=$(stat -c%s android.keystore)
+          echo "Restored keystore: $SIZE bytes"
+          if [ "$SIZE" -lt 500 ]; then
+            echo "::error::Keystore is only $SIZE bytes — ANDROID_KEYSTORE_BASE64 looks truncated."
+            echo "Re-copy the ENTIRE contents of keystore.b64 into the secret."
+            exit 1
+          fi
+
+          if ! keytool -list -keystore android.keystore \
+                 -storepass "$KEYSTORE_PASSWORD" > /tmp/ks.txt 2>/tmp/ks.err; then
+            echo "::error::Could not open the keystore — ANDROID_KEYSTORE_PASSWORD is likely wrong."
+            sed -e 's/^/  /' /tmp/ks.err | head -5
+            exit 1
+          fi
+
+          # keytool prints: "<alias>, <date>, PrivateKeyEntry,"
+          ALIASES=$(awk -F', ' '/PrivateKeyEntry/ {print $1}' /tmp/ks.txt)
+          COUNT=$(printf '%s\n' "$ALIASES" | grep -c . || true)
+          echo "Private key entries found: $COUNT"
+
+          if printf '%s\n' "$ALIASES" | grep -Fxq "$KEY_ALIAS"; then
+            RESOLVED="$KEY_ALIAS"
+            echo "ANDROID_KEY_ALIAS matches the keystore."
+          elif [ "$COUNT" -eq 1 ]; then
+            # JKS lowercases aliases, so a capitalisation difference lands here.
+            RESOLVED="$ALIASES"
+            echo "::warning::ANDROID_KEY_ALIAS does not match the keystore. Using the single private key it contains instead. Update the secret to match."
+          else
+            echo "::error::ANDROID_KEY_ALIAS is not in the keystore, and it holds $COUNT private keys so one cannot be chosen automatically."
+            echo "Set ANDROID_KEY_ALIAS to the alias from KEYSTORE_INFO.txt."
+            exit 1
+          fi
+
+          echo "RESOLVED_KEY_ALIAS=$RESOLVED" >> "$GITHUB_ENV"
 
       - name: Set version for this build
         env:
           VERSION_NAME: ${{ inputs.versionName }}
           VERSION_CODE: ${{ inputs.versionCode }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           node -e '
             const fs = require("fs");
             const m = JSON.parse(fs.readFileSync("twa-manifest.json", "utf8"));
             m.appVersionName = process.env.VERSION_NAME;
             m.appVersionCode = Number(process.env.VERSION_CODE);
-            m.signingKey = { path: "./android.keystore", alias: process.env.KEY_ALIAS };
+            m.signingKey = { path: "./android.keystore", alias: process.env.RESOLVED_KEY_ALIAS };
             fs.writeFileSync("twa-manifest.json", JSON.stringify(m, null, 2));
             console.log(`Building ${m.packageId} ${m.appVersionName} (${m.appVersionCode}) for ${m.host}`);
           '
@@ -160,7 +204,7 @@ jobs:
         continue-on-error: true
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_ALIAS: ${{ env.RESOLVED_KEY_ALIAS }}
         run: |
           fp=$(keytool -list -v -keystore android.keystore -alias "$KEY_ALIAS" \
                  -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
