@@ -137,6 +137,19 @@ jobs:
       - name: Generate Android project
         run: bubblewrap update --skipVersionUpgrade
 
+      # TwaManifest.fromFile applies no defaults, so any field this hand-written
+      # twa-manifest.json omits renders as an empty substitution — which surfaces
+      # as an unreadable 200-line Groovy stack trace from Gradle. Catch it here
+      # and name the offending line instead.
+      - name: Check generated build.gradle has no empty values
+        run: |
+          if grep -nE ":\s*,\s*$|\bundefined\b" app/build.gradle; then
+            echo "::error::app/build.gradle has an empty or undefined value (lines above)."
+            echo "A field is missing from twa-manifest.json — add it and re-run."
+            exit 1
+          fi
+          echo "build.gradle looks complete."
+
       - name: Build signed app bundle
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
