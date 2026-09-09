@@ -16,9 +16,12 @@ import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
+const USAGE = 'Usage: npm run set-domain -- <your-domain> [package-id]\n' +
+  'Example: npm run set-domain -- q-bil.com com.qbil.app'
+
 const domain = (process.argv[2] || '').trim().toLowerCase()
 if (!domain) {
-  console.error('Usage: npm run set-domain -- <your-domain>\nExample: npm run set-domain -- qbli.app')
+  console.error(USAGE)
   process.exit(1)
 }
 if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
@@ -26,14 +29,33 @@ if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(do
   process.exit(1)
 }
 if (domain.startsWith('www.')) {
-  console.error('Use the apex domain (qbli.app), not the www subdomain — the TWA binds to exactly one origin.')
+  console.error('Use the apex domain (q-bil.com), not the www subdomain — the TWA binds to exactly one origin.')
   process.exit(1)
 }
 
-// qbli.app -> app.qbli.twa   |   qbli.co.il -> il.co.qbli.twa
-const packageId = [...domain.split('.').reverse(), 'twa']
+// The package ID is Android's internal identifier for the app. It does NOT have
+// to match the domain — Digital Asset Links binds the two explicitly — and it can
+// never change once published. Pass one explicitly to avoid the derived form,
+// which has to substitute '_' for hyphens (q-bil.com -> com.q_bil.twa).
+//
+// Derivation: qbli.app -> app.qbli.twa | qbli.co.il -> il.co.qbli.twa
+const derivedPackageId = [...domain.split('.').reverse(), 'twa']
   .map(part => (/^[0-9]/.test(part) ? `_${part}` : part).replace(/-/g, '_'))
   .join('.')
+
+const packageId = (process.argv[3] || '').trim() || derivedPackageId
+
+// Same rule Android and @bubblewrap/core's validatePackageId enforce: at least
+// two dot-separated segments of [a-zA-Z0-9_], each starting with a letter.
+const segments = packageId.split('.')
+if (segments.length < 2 || !segments.every(s => /^[a-zA-Z][a-zA-Z0-9_]*$/.test(s))) {
+  console.error(
+    `Not a valid Android package ID: "${packageId}"\n` +
+    'Needs at least two sections separated by ".", using only letters, digits and\n' +
+    'underscore, with each section starting with a letter. Hyphens are not allowed.\n\n' + USAGE
+  )
+  process.exit(1)
+}
 
 // 1. CNAME — what pins the custom domain across GitHub Pages redeploys.
 writeFileSync(join(root, 'public/CNAME'), `${domain}\n`)

@@ -15,45 +15,75 @@ while those run.
 
 ---
 
-## Step 1 — Buy a domain **(you)**
+## Step 1 — Point the domain at GitHub Pages **(you)**
 
-The TWA is bound permanently to one exact origin. Changing it later means
-publishing a new app and losing your installs and reviews, so pick one you're
-happy to keep.
+The domain is **q-bil.com**, managed in Cloudflare. The TWA binds permanently to
+this exact origin — changing it later means publishing a new app and losing your
+installs and reviews.
 
-Buy from any registrar (Namecheap, Cloudflare, Porkbun — roughly $10–15/year).
-`.app` is a good fit and is HTTPS-only by default. Avoid free subdomains: if the
-provider ever disappears, every installed copy of your app breaks.
+The project is already wired to it (`public/CNAME`, `twa-manifest.json` and
+`assetlinks.json` all carry `q-bil.com`). What's left is DNS.
 
-Then point it at GitHub Pages. For an apex domain like `qbli.app`, create four
-**A records**:
+### Cloudflare DNS
 
-```
-185.199.108.153
-185.199.109.153
-185.199.110.153
-185.199.111.153
-```
+**DNS → Records**, add five records. **Every one must be "DNS only" — click the
+orange cloud so it turns grey.**
 
-In the repo: **Settings → Pages → Custom domain**, enter the domain, and tick
-**Enforce HTTPS** once the certificate is issued (can take up to an hour).
+| Type | Name | Content | Proxy |
+|---|---|---|---|
+| A | `@` | `185.199.108.153` | DNS only |
+| A | `@` | `185.199.109.153` | DNS only |
+| A | `@` | `185.199.110.153` | DNS only |
+| A | `@` | `185.199.111.153` | DNS only |
+| CNAME | `www` | `indlion-program.github.io` | DNS only |
 
-Then wire the domain into the project — this writes `public/CNAME` and fills in
-`twa-manifest.json` and `assetlinks.json`:
+> **This is the step that goes wrong.** While Cloudflare proxies the domain
+> (orange cloud), GitHub cannot issue its TLS certificate, so "Enforce HTTPS"
+> stays greyed out — and a TWA requires valid HTTPS. Grey cloud, always.
+
+Two more Cloudflare settings:
+
+- **SSL/TLS → Overview → Full (strict).** On *Flexible*, Cloudflare speaks HTTP to
+  GitHub while telling the browser it's HTTPS; combined with GitHub's own HTTPS
+  redirect that becomes an infinite redirect loop.
+- **Speed → Optimization → Rocket Loader: off.** It rewrites how scripts load and
+  can break the service worker that offline mode depends on.
+
+### GitHub Pages
+
+Repo **Settings → Pages → Custom domain** → `q-bil.com` → Save. Wait for the
+certificate (minutes, occasionally up to an hour), then tick **Enforce HTTPS**.
+
+This replaces the old `qbil.nhfm.qzz.io` address, which stops working.
+
+`public/CNAME` is committed for a reason: without it, GitHub Pages can silently
+drop the custom domain on a redeploy, which would break the app for everyone who
+already installed it.
+
+### Verify before moving on
 
 ```bash
-npm run set-domain -- qbli.app
-git add -A && git commit -m "Set production domain" && git push
+dig +short q-bil.com     # expect the four 185.199.x.153 addresses
 ```
 
-`public/CNAME` matters: without it GitHub Pages can silently drop your custom
-domain on a redeploy, which would break the app for everyone who installed it.
+If you get Cloudflare addresses (`104.x` / `172.x`), the proxy is still on.
 
-Confirm before moving on:
+Then, once the site has deployed from `main`:
 
-- `https://qbli.app` loads the app
-- `https://qbli.app/privacy.html` shows the privacy policy
-- `https://qbli.app/manifest.webmanifest` returns JSON
+- `https://q-bil.com` loads the app over HTTPS
+- `https://q-bil.com/privacy.html` shows the privacy policy
+- `https://q-bil.com/manifest.webmanifest` returns JSON
+- `https://q-bil.com/.well-known/assetlinks.json` returns JSON, **not** the app
+- `https://www.q-bil.com` redirects to the apex
+
+### Changing the domain later
+
+```bash
+npm run set-domain -- <domain> [package-id]
+```
+
+Rewrites `public/CNAME`, `twa-manifest.json` and `assetlinks.json` together. It
+warns if the package ID would change, since that is permanent after publishing.
 
 ---
 
@@ -181,7 +211,7 @@ which has Hebrew and English text within the character limits, plus:
 - Feature graphic: `store-assets/feature-graphic.png`
 - Phone screenshots: the four PNGs in `public/screenshots/`
 
-**Privacy policy** — `https://<your-domain>/privacy.html`
+**Privacy policy** — `https://q-bil.com/privacy.html`
 
 **Data safety** — answer it to match what the app actually does:
 
@@ -226,7 +256,7 @@ must be published is **not** your upload key.
 5. Commit and push, then confirm it's live:
 
 ```bash
-curl https://<your-domain>/.well-known/assetlinks.json
+curl https://q-bil.com/.well-known/assetlinks.json
 ```
 
 Verification can take a few minutes to propagate after the app installs. If the
