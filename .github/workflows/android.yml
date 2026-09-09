@@ -67,16 +67,42 @@ jobs:
       # preinstalled on the runner, so it does not try to download its own.
       - name: Configure Bubblewrap
         run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          [ -n "$SDK" ] && [ -d "$SDK" ] || { echo "::error::No Android SDK on this runner"; exit 1; }
+
+          # Bubblewrap expects the OLD SDK layout: AndroidSdkTools.validatePath
+          # requires <sdk>/tools or <sdk>/bin to exist, and installBuildTools looks
+          # for sdkmanager at <sdk>/tools/bin/sdkmanager or <sdk>/bin/sdkmanager.
+          # GitHub runners ship the modern layout (cmdline-tools/<version>/bin) and
+          # have neither, so Bubblewrap rejects a perfectly good SDK with
+          # "The provided androidSdk isn't correct." Link the real bin directory
+          # into the location it expects.
+          if [ ! -e "$SDK/bin" ] && [ ! -e "$SDK/tools" ]; then
+            CMDLINE_BIN="$(ls -d "$SDK"/cmdline-tools/*/bin 2>/dev/null | tail -1 || true)"
+            [ -n "$CMDLINE_BIN" ] || { echo "::error::No cmdline-tools found under $SDK"; exit 1; }
+            ln -s "$CMDLINE_BIN" "$SDK/bin" 2>/dev/null || sudo ln -s "$CMDLINE_BIN" "$SDK/bin"
+            echo "Linked $SDK/bin -> $CMDLINE_BIN"
+          fi
+          [ -x "$SDK/bin/sdkmanager" ] || { echo "::error::sdkmanager not executable at $SDK/bin/sdkmanager"; exit 1; }
+
+          # Accept licences up front so Bubblewrap's own build-tools install (which
+          # runs interactively) can't stall waiting for input.
+          yes | "$SDK/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          # Pre-install the build-tools Bubblewrap pins, so it skips that step.
+          # Best-effort: if the version moves, Bubblewrap installs it itself.
+          "$SDK/bin/sdkmanager" --install "build-tools;36.1.0" > /dev/null 2>&1 || true
+
           mkdir -p "$HOME/.bubblewrap"
           cat > "$HOME/.bubblewrap/config.json" <<EOF
           {
             "jdkPath": "${JAVA_HOME}",
-            "androidSdkPath": "${ANDROID_SDK_ROOT}"
+            "androidSdkPath": "${SDK}"
           }
           EOF
           echo "JAVA_HOME=$JAVA_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          echo "SDK=$SDK"
+          ls "$SDK/build-tools" 2>/dev/null || echo "(no build-tools dir yet)"
 
       - name: Restore signing keystore
         env:
