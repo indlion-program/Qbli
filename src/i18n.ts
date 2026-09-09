@@ -48,8 +48,6 @@ const he = {
     discount: 'הנחה',
     totalDue: 'סה"כ לתשלום',
     thanks: 'תודה על הבחירה בנו!',
-    sent: 'נשלח ל-{{email}}',
-    sendFailed: 'שגיאה בשליחה — נסה שוב',
   },
   settings: {
     bizName: 'שם העסק',
@@ -160,8 +158,6 @@ const en: typeof he = {
     discount: 'Discount',
     totalDue: 'Total due',
     thanks: 'Thank you for your business!',
-    sent: 'Sent to {{email}}',
-    sendFailed: 'Send failed — try again',
   },
   settings: {
     bizName: 'Business Name',

@@ -9,7 +9,7 @@ import type { Receipt, Client, AppSettings } from '../types'
 import { getReceipts, getClients, getSettings, deleteReceipt } from '../utils/db'
 import { formatCurrency, getCurrentMonthRange, getCurrentYearRange } from '../utils/format'
 import { openReceiptWindow } from '../utils/pdf'
-import { shareByNative, shareByWhatsApp, sendEmailDirect } from '../utils/share'
+import { shareByNative, shareByEmail, shareByWhatsApp } from '../utils/share'
 
 export function Home() {
   const { t } = useTranslation()
@@ -22,7 +22,6 @@ export function Home() {
   const [selected, setSelected] = useState<Receipt | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
-  const [emailSending, setEmailSending] = useState(false)
 
   const load = useCallback(async () => {
     const [r, c, s] = await Promise.all([getReceipts(), getClients(), getSettings()])
@@ -150,19 +149,18 @@ export function Home() {
                     showToast(t('share.noEmail'), 'error', 3000)
                     return
                   }
-                  setEmailSending(true)
-                  const result = await sendEmailDirect(selected, settings)
-                  setEmailSending(false)
-                  if (result.ok) {
-                    showToast(t('share.sent', { email: selected.clientEmail }), 'success', 3000)
-                  } else {
-                    showToast(t('share.sendFailed'), 'error', 3000)
-                  }
+                  await copyAndShare(selected.clientEmail, () => shareByEmail(selected, settings))
                 }}
-                disabled={emailSending}
-                className="border border-gray-200 text-gray-600 rounded-xl py-3 text-xs font-medium disabled:opacity-60"
+                className={`rounded-xl py-3 text-xs font-medium transition-all duration-300 ${
+                  copiedEmail
+                    ? 'col-span-3 bg-green-500 text-white animate-pulse'
+                    : 'border border-gray-200 text-gray-600'
+                }`}
               >
-                {emailSending ? `⏳` : `📧 ${t('share.email')}`}
+                {copiedEmail
+                  ? `📋 ${copiedEmail.length > 22 ? copiedEmail.slice(0, 20) + '…' : copiedEmail} ✓`
+                  : `📧 ${t('share.email')}`
+                }
               </button>
               <button
                 onClick={() => shareByWhatsApp(selected)}

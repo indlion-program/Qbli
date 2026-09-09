@@ -2,59 +2,6 @@ import type { Receipt, AppSettings } from '../types'
 import { generateReceiptPDFBlob } from './pdf'
 import i18n from '../i18n'
 
-export type EmailResult = { ok: true } | { ok: false }
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1])
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
-export async function sendEmailDirect(receipt: Receipt, settings: AppSettings): Promise<EmailResult> {
-  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
-  if (!workerUrl) {
-    await shareByEmail(receipt, settings)
-    return { ok: true }
-  }
-
-  let pdfBase64: string
-  try {
-    const blob = await generateReceiptPDFBlob(receipt, settings)
-    pdfBase64 = await blobToBase64(blob)
-  } catch {
-    return { ok: false }
-  }
-
-  const isHe = i18n.language !== 'en'
-  const subject = isHe
-    ? `קבלה מספר ${receipt.id} — ${settings.bizName}`
-    : `Receipt #${receipt.id} — ${settings.bizName}`
-
-  let res: Response
-  try {
-    res = await fetch(`${workerUrl}/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        businessId: settings.businessId,
-        to: receipt.clientEmail,
-        subject,
-        bodyText: buildEmailBody(receipt, settings),
-        pdfBase64,
-        pdfFilename: `receipt-${receipt.id}.pdf`,
-      }),
-    })
-  } catch {
-    return { ok: false }
-  }
-
-  if (!res.ok) return { ok: false }
-  return { ok: true }
-}
-
 function t(key: string): string {
   return i18n.t(key) as string
 }
