@@ -35,5 +35,6 @@
     "enabled": false
   },
   "generatorApp": "bubblewrap-cli",
-  "fingerprints": []
+  "fingerprints": [],
+  "splashScreenFadeOutDuration": 300
 }
