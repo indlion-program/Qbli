@@ -42,13 +42,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   address: '',
   nextReceiptNum: Math.floor(Math.random() * 1000) + 1000,
   lang: 'he',
+  businessId: '',
 }
 
 export async function getSettings(): Promise<AppSettings> {
   const db = await getDB()
   const tx = db.transaction('settings', 'readonly')
   const store = tx.objectStore('settings')
-  const keys: (keyof AppSettings)[] = ['bizName', 'ownerName', 'phone', 'email', 'address', 'nextReceiptNum', 'lang']
+  const keys: (keyof AppSettings)[] = ['bizName', 'ownerName', 'phone', 'email', 'address', 'nextReceiptNum', 'lang', 'businessId']
   const result: Partial<AppSettings> = {}
   let hasAny = false
   for (const key of keys) {
@@ -58,8 +59,16 @@ export async function getSettings(): Promise<AppSettings> {
       ;(result as Record<string, unknown>)[key] = row.value
     }
   }
-  if (!hasAny) return DEFAULT_SETTINGS
-  return { ...DEFAULT_SETTINGS, ...result } as AppSettings
+  const merged = { ...DEFAULT_SETTINGS, ...(hasAny ? result : {}) } as AppSettings
+
+  if (!merged.businessId) {
+    merged.businessId = crypto.randomUUID()
+    const tx2 = db.transaction('settings', 'readwrite')
+    await tx2.objectStore('settings').put({ key: 'businessId', value: merged.businessId })
+    await tx2.done
+  }
+
+  return merged
 }
 
 export async function saveSettings(s: AppSettings): Promise<void> {

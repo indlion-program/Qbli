@@ -1,0 +1,39 @@
+{
+  "packageId": "com.qbil.app",
+  "host": "q-bil.com",
+  "name": "Qbli — קבלות לעסקים קטנים",
+  "launcherName": "Qbli",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#1D9E75",
+  "themeColorDark": "#1D9E75",
+  "navigationColor": "#1D9E75",
+  "navigationColorDark": "#1D9E75",
+  "navigationDividerColor": "#1D9E75",
+  "navigationDividerColorDark": "#1D9E75",
+  "backgroundColor": "#F7F7F5",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://q-bil.com/icons/icon-512.png",
+  "maskableIconUrl": "https://q-bil.com/icons/icon-512-maskable.png",
+  "webManifestUrl": "https://q-bil.com/manifest.webmanifest",
+  "fullScopeUrl": "https://q-bil.com/",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 21,
+  "shortcuts": [],
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "qbli"
+  },
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "generatorApp": "bubblewrap-cli",
+  "fingerprints": []
+}

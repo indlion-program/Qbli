@@ -7,9 +7,29 @@ import { NewReceipt } from './pages/NewReceipt'
 import { Clients } from './pages/Clients'
 import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
+import { Toast, useToast } from './components/Toast'
 import { getSettings } from './utils/db'
 
 type AppState = 'loading' | 'onboarding' | 'ready'
+
+function AppRoutes() {
+  const { messages, dismissToast } = useToast()
+
+  return (
+    <>
+      <Toast messages={messages} onDismiss={dismissToast} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/new-receipt" element={<NewReceipt />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Navbar />
+    </>
+  )
+}
 
 export default function App() {
   const [state, setState] = useState<AppState>('loading')
@@ -46,15 +66,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-surface">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/new-receipt" element={<NewReceipt />} />
-        <Route path="/clients" element={<Clients />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <Navbar />
+      <AppRoutes />
     </div>
   )
 }

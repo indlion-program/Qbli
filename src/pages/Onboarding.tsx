@@ -16,6 +16,7 @@ const initialSettings: AppSettings = {
   address: '',
   nextReceiptNum: Math.floor(Math.random() * 1000) + 1000,
   lang: 'he',
+  businessId: '',
 }
 
 interface DraftProduct {

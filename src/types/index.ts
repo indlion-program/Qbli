@@ -42,4 +42,5 @@ export interface AppSettings {
   address: string
   nextReceiptNum: number
   lang: 'he' | 'en'
+  businessId: string
 }
