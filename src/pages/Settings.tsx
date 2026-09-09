@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TopBar } from '../components/TopBar'
 import { Toast, useToast } from '../components/Toast'
-import { PaywallSheet } from '../components/PaywallSheet'
 import type { AppSettings, Product, Receipt, Client } from '../types'
 import { getSettings, saveSettings, getProducts, saveProduct, deleteProduct, getReceipts, getClients } from '../utils/db'
 import { exportBackup, importBackup } from '../utils/export'
 import { generateId } from '../utils/format'
-import { getQuotaStatus } from '../utils/share'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -19,8 +17,6 @@ export function Settings() {
   const [clients, setClients] = useState<Client[]>([])
   const [newProduct, setNewProduct] = useState({ name: '', price: '' })
   const importRef = useRef<HTMLInputElement>(null)
-  const [quotaStatus, setQuotaStatus] = useState<{ isPro: boolean; weeklyCount: number } | null>(null)
-  const [paywallOpen, setPaywallOpen] = useState(false)
 
   const load = useCallback(async () => {
     const [s, p, r, c] = await Promise.all([getSettings(), getProducts(), getReceipts(), getClients()])
@@ -28,11 +24,6 @@ export function Settings() {
     setProducts(p)
     setReceipts(r)
     setClients(c)
-    if (s.businessId) {
-      getQuotaStatus(s.businessId).then(status => {
-        if (status) setQuotaStatus(status)
-      })
-    }
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -238,38 +229,6 @@ export function Settings() {
           </div>
         </Card>
 
-        {/* Pro plan */}
-        <Card title="Qbli Pro">
-          {quotaStatus === null ? (
-            <p className="text-xs text-gray-400">{t('common.loading')}</p>
-          ) : quotaStatus.isPro ? (
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-green-600 font-medium">✓ {t('paywall.proActive')}</p>
-              <p className="text-xs text-gray-400">{t('paywall.proUnlimited')}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>{t('paywall.planFree', { count: quotaStatus.weeklyCount })}</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5">
-                  <div
-                    className="bg-primary h-1.5 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (quotaStatus.weeklyCount / 7) * 100)}%` }}
-                  />
-                </div>
-              </div>
-              <button
-                onClick={() => setPaywallOpen(true)}
-                className="w-full bg-primary text-white rounded-lg py-2.5 text-sm font-medium"
-              >
-                {t('paywall.upgrade')} — ₪19.90/חודש
-              </button>
-            </div>
-          )}
-        </Card>
-
         {/* Save button */}
         <button
           onClick={handleSave}
@@ -278,15 +237,6 @@ export function Settings() {
           {t('settings.save')}
         </button>
       </div>
-
-      {settings && (
-        <PaywallSheet
-          open={paywallOpen}
-          onClose={() => setPaywallOpen(false)}
-          businessId={settings.businessId}
-          weeklyCount={quotaStatus?.weeklyCount ?? 0}
-        />
-      )}
     </div>
   )
 }

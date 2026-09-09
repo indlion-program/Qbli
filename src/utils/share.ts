@@ -2,10 +2,7 @@ import type { Receipt, AppSettings } from '../types'
 import { generateReceiptPDFBlob } from './pdf'
 import i18n from '../i18n'
 
-export type EmailResult =
-  | { ok: true; remaining: number }
-  | { ok: false; quota: true; checkoutUrl: string }
-  | { ok: false; quota: false }
+export type EmailResult = { ok: true } | { ok: false }
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,7 +17,7 @@ export async function sendEmailDirect(receipt: Receipt, settings: AppSettings): 
   const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
   if (!workerUrl) {
     await shareByEmail(receipt, settings)
-    return { ok: true, remaining: 7 }
+    return { ok: true }
   }
 
   let pdfBase64: string
@@ -28,7 +25,7 @@ export async function sendEmailDirect(receipt: Receipt, settings: AppSettings): 
     const blob = await generateReceiptPDFBlob(receipt, settings)
     pdfBase64 = await blobToBase64(blob)
   } catch {
-    return { ok: false, quota: false }
+    return { ok: false }
   }
 
   const isHe = i18n.language !== 'en'
@@ -51,42 +48,11 @@ export async function sendEmailDirect(receipt: Receipt, settings: AppSettings): 
       }),
     })
   } catch {
-    return { ok: false, quota: false }
+    return { ok: false }
   }
 
-  if (res.status === 402) {
-    const data = await res.json() as { checkoutUrl: string }
-    return { ok: false, quota: true, checkoutUrl: data.checkoutUrl }
-  }
-  if (!res.ok) return { ok: false, quota: false }
-
-  const data = await res.json() as { weeklyRemaining: number }
-  return { ok: true, remaining: data.weeklyRemaining }
-}
-
-export async function getQuotaStatus(businessId: string): Promise<{ isPro: boolean; weeklyCount: number; weeklyRemaining: number } | null> {
-  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
-  if (!workerUrl) return null
-  try {
-    const res = await fetch(`${workerUrl}/status?businessId=${encodeURIComponent(businessId)}`)
-    if (!res.ok) return null
-    return res.json()
-  } catch {
-    return null
-  }
-}
-
-export async function getCheckoutUrl(businessId: string): Promise<string | null> {
-  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
-  if (!workerUrl) return null
-  try {
-    const res = await fetch(`${workerUrl}/checkout?businessId=${encodeURIComponent(businessId)}`)
-    if (!res.ok) return null
-    const data = await res.json() as { checkoutUrl: string }
-    return data.checkoutUrl
-  } catch {
-    return null
-  }
+  if (!res.ok) return { ok: false }
+  return { ok: true }
 }
 
 function t(key: string): string {

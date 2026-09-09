@@ -10,7 +10,6 @@ import { getReceipts, getClients, getSettings, deleteReceipt } from '../utils/db
 import { formatCurrency, getCurrentMonthRange, getCurrentYearRange } from '../utils/format'
 import { openReceiptWindow } from '../utils/pdf'
 import { shareByNative, shareByWhatsApp, sendEmailDirect } from '../utils/share'
-import { PaywallSheet } from '../components/PaywallSheet'
 
 export function Home() {
   const { t } = useTranslation()
@@ -24,8 +23,6 @@ export function Home() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
   const [emailSending, setEmailSending] = useState(false)
-  const [paywallOpen, setPaywallOpen] = useState(false)
-  const [paywallCheckoutUrl, setPaywallCheckoutUrl] = useState<string | undefined>()
 
   const load = useCallback(async () => {
     const [r, c, s] = await Promise.all([getReceipts(), getClients(), getSettings()])
@@ -157,12 +154,9 @@ export function Home() {
                   const result = await sendEmailDirect(selected, settings)
                   setEmailSending(false)
                   if (result.ok) {
-                    showToast(t('paywall.sent', { email: selected.clientEmail }), 'success', 3000)
-                  } else if (result.quota) {
-                    setPaywallCheckoutUrl(result.checkoutUrl)
-                    setPaywallOpen(true)
+                    showToast(t('share.sent', { email: selected.clientEmail }), 'success', 3000)
                   } else {
-                    showToast(t('paywall.sendFailed'), 'error', 3000)
+                    showToast(t('share.sendFailed'), 'error', 3000)
                   }
                 }}
                 disabled={emailSending}
@@ -220,17 +214,6 @@ export function Home() {
           </div>
         )}
       </BottomSheet>
-
-      {/* Paywall */}
-      {settings && (
-        <PaywallSheet
-          open={paywallOpen}
-          onClose={() => setPaywallOpen(false)}
-          businessId={settings.businessId}
-          weeklyCount={7}
-          initialCheckoutUrl={paywallCheckoutUrl}
-        />
-      )}
 
       {/* Delete confirmation */}
       <BottomSheet

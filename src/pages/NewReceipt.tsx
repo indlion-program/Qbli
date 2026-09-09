@@ -9,7 +9,6 @@ import type { Receipt, ReceiptItem, Client, Product, AppSettings } from '../type
 import { getClients, getProducts, getSettings, saveSettings, saveReceipt, saveClient } from '../utils/db'
 import { formatCurrency, formatDate, padReceiptId, generateId } from '../utils/format'
 import { shareByNative, shareByWhatsApp, sendEmailDirect } from '../utils/share'
-import { PaywallSheet } from '../components/PaywallSheet'
 import { openReceiptWindow } from '../utils/pdf'
 
 export function NewReceipt() {
@@ -35,8 +34,6 @@ export function NewReceipt() {
   const [createdReceipt, setCreatedReceipt] = useState<Receipt | null>(null)
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
   const [emailSending, setEmailSending] = useState(false)
-  const [paywallOpen, setPaywallOpen] = useState(false)
-  const [paywallCheckoutUrl, setPaywallCheckoutUrl] = useState<string | undefined>()
 
   // Extract primitive string once — stable across renders (won't trigger infinite loop)
   const clientIdParam = searchParams.get('clientId')
@@ -355,12 +352,9 @@ export function NewReceipt() {
                   const result = await sendEmailDirect(createdReceipt, settings)
                   setEmailSending(false)
                   if (result.ok) {
-                    showToast(t('paywall.sent', { email: createdReceipt.clientEmail }), 'success', 3000)
-                  } else if (result.quota) {
-                    setPaywallCheckoutUrl(result.checkoutUrl)
-                    setPaywallOpen(true)
+                    showToast(t('share.sent', { email: createdReceipt.clientEmail }), 'success', 3000)
                   } else {
-                    showToast(t('paywall.sendFailed'), 'error', 3000)
+                    showToast(t('share.sendFailed'), 'error', 3000)
                   }
                 }}
                 disabled={emailSending}
@@ -385,16 +379,6 @@ export function NewReceipt() {
           </div>
         )}
       </BottomSheet>
-
-      {settings && (
-        <PaywallSheet
-          open={paywallOpen}
-          onClose={() => setPaywallOpen(false)}
-          businessId={settings.businessId}
-          weeklyCount={7}
-          initialCheckoutUrl={paywallCheckoutUrl}
-        />
-      )}
     </div>
   )
 }

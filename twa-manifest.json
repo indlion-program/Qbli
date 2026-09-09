@@ -1,0 +1,39 @@
+{
+  "packageId": "REPLACE_WITH_PACKAGE_ID",
+  "host": "REPLACE_WITH_DOMAIN",
+  "name": "Qbli — קבלות לעסקים קטנים",
+  "launcherName": "Qbli",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#1D9E75",
+  "themeColorDark": "#1D9E75",
+  "navigationColor": "#1D9E75",
+  "navigationColorDark": "#1D9E75",
+  "navigationDividerColor": "#1D9E75",
+  "navigationDividerColorDark": "#1D9E75",
+  "backgroundColor": "#F7F7F5",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://REPLACE_WITH_DOMAIN/icons/icon-512.png",
+  "maskableIconUrl": "https://REPLACE_WITH_DOMAIN/icons/icon-512-maskable.png",
+  "webManifestUrl": "https://REPLACE_WITH_DOMAIN/manifest.webmanifest",
+  "fullScopeUrl": "https://REPLACE_WITH_DOMAIN/",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 21,
+  "shortcuts": [],
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "qbli"
+  },
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "generatorApp": "bubblewrap-cli",
+  "fingerprints": []
+}

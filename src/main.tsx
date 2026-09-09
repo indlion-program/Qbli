@@ -11,6 +11,9 @@ Sentry.init({
   environment: import.meta.env.MODE,
   integrations: [Sentry.browserTracingIntegration()],
   tracesSampleRate: 0.2,
+  // Receipt, client and business data must never leave the device — this is what
+  // the published privacy policy (public/privacy.html) commits to.
+  sendDefaultPii: false,
 })
 
 createRoot(document.getElementById('root')!).render(

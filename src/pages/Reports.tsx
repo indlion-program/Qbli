@@ -199,9 +199,11 @@ export function Reports() {
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E5E5E3]/50 p-3">
+    <div className="bg-white rounded-xl border border-[#E5E5E3]/50 p-2.5">
       <p className="text-[10px] text-gray-400 mb-1">{label}</p>
-      <p className="text-sm font-bold text-gray-900 truncate">{value}</p>
+      {/* Three of these share the row, so a full ₪ amount only just fits.
+          truncate stays as a fallback for unusually large totals. */}
+      <p className="text-xs font-bold text-gray-900 truncate tabular-nums">{value}</p>
     </div>
   )
 }

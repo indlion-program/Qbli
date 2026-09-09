@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Navbar } from './components/Navbar'
 import { Onboarding } from './pages/Onboarding'
 import { Home } from './pages/Home'
@@ -13,15 +13,7 @@ import { getSettings } from './utils/db'
 type AppState = 'loading' | 'onboarding' | 'ready'
 
 function AppRoutes() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const { messages, showToast, dismissToast } = useToast()
-
-  useEffect(() => {
-    if (searchParams.get('payment') === 'success') {
-      showToast('✓ שדרוג ל-Pro הושלם!', 'success', 4000)
-      setSearchParams(prev => { prev.delete('payment'); return prev }, { replace: true })
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const { messages, dismissToast } = useToast()
 
   return (
     <>

@@ -1,0 +1,146 @@
+name: Build Android App Bundle
+
+# Manual only — building an AAB on every push would burn CI minutes and produce
+# bundles nobody uploads. Run it from the Actions tab when you want a release.
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Version name shown to users (e.g. 1.0.1)'
+        required: true
+        default: '1.0.0'
+      versionCode:
+        description: 'Version code — a whole number that must INCREASE on every upload to Play'
+        required: true
+        default: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bubblewrap targets JDK 17. The runner ships several JDKs; pin it explicitly
+      # so the build does not drift when the runner image changes.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fail early if the domain has not been set
+        run: |
+          if grep -q 'REPLACE_WITH_' twa-manifest.json; then
+            echo "::error::twa-manifest.json still has placeholders."
+            echo "Run 'npm run set-domain -- <your-domain>' and commit the result first."
+            exit 1
+          fi
+
+      - name: Check required secrets are present
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD \
+                      ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || {
+            echo "See PLAY_STORE.md for how to create the keystore and add these secrets."
+            exit 1
+          }
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli@1.25.0
+
+      # Point Bubblewrap at the JDK from setup-java and the Android SDK that is
+      # preinstalled on the runner, so it does not try to download its own.
+      - name: Configure Bubblewrap
+        run: |
+          mkdir -p "$HOME/.bubblewrap"
+          cat > "$HOME/.bubblewrap/config.json" <<EOF
+          {
+            "jdkPath": "${JAVA_HOME}",
+            "androidSdkPath": "${ANDROID_SDK_ROOT}"
+          }
+          EOF
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android.keystore
+          # Never let the key reach an artifact or a commit.
+          echo "android.keystore" >> .git/info/exclude
+
+      - name: Set version for this build
+        env:
+          VERSION_NAME: ${{ inputs.versionName }}
+          VERSION_CODE: ${{ inputs.versionCode }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const m = JSON.parse(fs.readFileSync("twa-manifest.json", "utf8"));
+            m.appVersionName = process.env.VERSION_NAME;
+            m.appVersionCode = Number(process.env.VERSION_CODE);
+            m.signingKey = { path: "./android.keystore", alias: process.env.KEY_ALIAS };
+            fs.writeFileSync("twa-manifest.json", JSON.stringify(m, null, 2));
+            console.log(`Building ${m.packageId} ${m.appVersionName} (${m.appVersionCode}) for ${m.host}`);
+          '
+
+      # Regenerates the Android project from twa-manifest.json and writes
+      # manifest-checksum.txt. Without this, `build` stops to ask a question and
+      # the job hangs. --skipVersionUpgrade keeps the versions set above.
+      #
+      # Note: this step fetches iconUrl over the network, so the site must
+      # already be live on your domain before the build will succeed.
+      - name: Generate Android project
+        run: bubblewrap update --skipVersionUpgrade
+
+      - name: Build signed app bundle
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bubblewrap build --skipPwaValidation
+
+      - name: Report upload-key fingerprint
+        continue-on-error: true
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          fp=$(keytool -list -v -keystore android.keystore -alias "$KEY_ALIAS" \
+                 -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+               | grep -i 'SHA256:' | head -1 | sed 's/.*SHA256: *//')
+          {
+            echo "### Upload key SHA-256"
+            echo '```'
+            echo "$fp"
+            echo '```'
+            echo "This is the **upload key**. The fingerprint that must go into"
+            echo "\`public/.well-known/assetlinks.json\` is Play's **app signing key**,"
+            echo "found in Play Console → Release → Setup → App integrity."
+            echo "See PLAY_STORE.md."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: qbli-${{ inputs.versionName }}-${{ inputs.versionCode }}-aab
+          path: app-release-bundle.aab
+          if-no-files-found: error
+          retention-days: 30
