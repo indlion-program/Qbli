@@ -112,6 +112,48 @@ production once the listing is complete. Personal accounts created after
 > on the D&B site and copy the name and address from it verbatim rather than
 > typing them from memory. Each rejection costs another review cycle.
 
+### Sign up with an address on your own domain
+
+Play Console warns if you register with a personal Gmail, and recommends an
+address on the organization's domain to cut down verification steps. It is a
+**recommendation, not a requirement** — an organization account needs a verified
+email *and* phone plus D-U-N-S verification either way.
+
+Worth doing anyway, and free. It also keeps a personal address off the public
+store listing.
+
+**1. Cloudflare Email Routing (free)**
+
+Cloudflare → **q-bil.com** → **Email** → **Email Routing** → *Get started*.
+
+- Accept when it offers to add the DNS records for you (three MX plus a TXT/SPF)
+- Create `admin@q-bil.com`, destination: your personal Gmail
+- Confirm the destination from the email Cloudflare sends, then enable routing
+
+This does **not** disturb the website. Email Routing adds MX and TXT records; the
+A records pointing the domain at GitHub Pages are untouched.
+
+Send a test message to `admin@q-bil.com` and confirm it arrives before continuing
+— the next step depends on receiving a code there.
+
+> Email Routing **receives only**. You cannot send *from* that address through it.
+> That is enough for Play verification; sending would need an SMTP provider.
+
+**2. Create a Google Account on that address**
+
+<https://accounts.google.com/signup>
+
+- Choose the **personal** option — **not** "for my work or business", which
+  forces a paid Google Workspace subscription
+- On the address screen choose **"Use your existing email"** (some screens word it
+  *"Use my current email address instead"*)
+- Enter `admin@q-bil.com`; the verification code arrives via the forwarding above
+
+If the address comes back as already taken, a Google Account exists for it — sign
+in and use password recovery rather than creating another.
+
+Then sign in to Play Console **as that account** before registering.
+
 ### Timing
 
 Expect **2–4 weeks** for organization verification. Nothing else in Play unlocks
