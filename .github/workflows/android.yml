@@ -198,7 +198,26 @@ jobs:
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: bubblewrap build --skipPwaValidation
+        run: |
+          set -o pipefail
+          bubblewrap build --skipPwaValidation 2>&1 | tee /tmp/build.log
+
+      # Gradle prints "What went wrong" and then several hundred lines of Java
+      # stack trace, so the one line that matters ends up far above the end of
+      # the log. Re-print just that block last, where it is actually visible.
+      - name: Explain the Gradle failure
+        if: failure()
+        run: |
+          [ -f /tmp/build.log ] || exit 0
+          echo "::group::Gradle failure summary"
+          sed -n '/FAILURE: Build failed/,/\* Exception is:/p' /tmp/build.log \
+            | grep -v '^\* Exception is:' || echo "(no FAILURE block — see the full log)"
+          echo "::endgroup::"
+          # Manifest-merger failures name a library minSdk the project does not meet;
+          # the fix is raising minSdkVersion in twa-manifest.json to match.
+          if grep -q 'uses-sdk:minSdkVersion' /tmp/build.log; then
+            echo "::error::A dependency now requires a higher minSdkVersion than twa-manifest.json declares. Raise it to the version named above."
+          fi
 
       - name: Report upload-key fingerprint
         continue-on-error: true
