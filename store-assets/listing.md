@@ -129,7 +129,7 @@ Regenerate with `npm run feature-graphic` and `npm run screenshots`.
 
 - **App category:** Business (Finance is also defensible; Business fits better)
 - **Tags:** receipts, invoicing, small business, bookkeeping
-- **Contact email:** the address used in `public/privacy.html`
+- **Contact email:** `admin@q-bil.com`
 - **Privacy policy URL:** `https://q-bil.com/privacy.html`
 - **Ads:** No
 - **In-app purchases:** No
