@@ -20,7 +20,7 @@
   "fullScopeUrl": "https://q-bil.com/",
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
-  "minSdkVersion": 21,
+  "minSdkVersion": 24,
   "shortcuts": [],
   "signingKey": {
     "path": "./android.keystore",
