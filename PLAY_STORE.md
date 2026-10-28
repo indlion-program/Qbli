@@ -8,10 +8,10 @@ PWA full-screen with no browser bar. There is no second codebase: whatever
 GitHub Pages serves is what the app shows, so shipping a web change ships an app
 change, with no Play review.
 
-**Realistic timeline: 3–4 weeks**, almost all of it waiting. Play account
-verification takes days, and a new personal account must run a 14-day closed test
-before it can go public. Start steps 1 and 2 today; everything else can happen
-while those run.
+**Realistic timeline: 2–4 weeks**, almost all of it waiting on Google. The long
+pole is organization account verification against your D-U-N-S record; because
+that route is exempt from closed testing, there is no 14-day tester period on top.
+Start step 2 today — everything else can be prepared while it runs.
 
 ---
 
@@ -87,24 +87,36 @@ warns if the package ID would change, since that is permanent after publishing.
 
 ---
 
-## Step 2 — Create a Play Console account **(you)**
+## Step 2 — Create a Play Console **organization** account **(you)**
 
 <https://play.google.com/console> — **$25, one time, forever.**
 
-You'll pick an account type, and this choice has real consequences:
+Choose **Organization**, not Personal. **This choice cannot be changed later.**
 
-| | Personal | Organization |
-|---|---|---|
-| Needs | ID document | D-U-N-S number for a registered business |
-| Closed test before going public | **12 testers, 14 days** | Not required |
-| Setup time | Days | Weeks (D-U-N-S takes time) |
+The reason it matters: organization accounts verified with a D-U-N-S number are
+**exempt from the 12-testers-for-14-days closed test**. You go straight to
+production once the listing is complete. Personal accounts created after
+13 Nov 2023 are not exempt.
 
-If you have a registered business (עוסק מורשה/פטור) and can get a D-U-N-S number,
-the organization account skips the 12-tester requirement entirely. Otherwise take
-the personal account and plan for step 7.
+### What you'll need
 
-Identity verification takes a few days. Nothing else in Play can proceed until
-it clears, which is why this goes first.
+- Your **D-U-N-S number**
+- **Legal business name and address, exactly as they appear on your Dun &
+  Bradstreet record**
+- A business website — `https://q-bil.com` serves
+- Contact email and phone number
+
+> **The single most common rejection cause** is the business name or address not
+> matching the D&B record — an abbreviation, a former address, a different
+> spelling. Google verifies against that record directly. Look up your own entry
+> on the D&B site and copy the name and address from it verbatim rather than
+> typing them from memory. Each rejection costs another review cycle.
+
+### Timing
+
+Expect **2–4 weeks** for organization verification. Nothing else in Play unlocks
+until it clears, so start this first and let it run while everything else is
+prepared.
 
 ---
 
@@ -131,21 +143,21 @@ confusing class of build failure.
 
 ### Storing it — do this properly
 
-Get a password manager that holds **file attachments**, not just passwords, since
-the keystore is a binary file:
+**You don't need paid file storage.** `keystore.b64` is plain text, about 3,500
+characters, so any free password manager's secure note holds it.
 
-- **1Password** (~$3/month) — recommended. Stores files as Documents on every
-  plan and has proper emergency access.
-- **Bitwarden Premium** ($10/year) — cheapest solid option, open source. File
-  attachments need the paid tier; the free tier can't hold the keystore.
-- **Proton Pass Plus** — good if you already pay for Proton.
+**Bitwarden (free):** new item → **Secure Note** → name it
+`Qbli Android signing key` → paste in:
 
-Create one item containing **all** of this:
-
-- the `android.keystore` file itself
+- the entire contents of `keystore.b64`
 - the keystore password and key password
 - the key alias (`qbli`)
-- your `packageId` (e.g. `app.qbli.twa`)
+- the package ID (`com.qbil.app`)
+
+To turn that text back into a usable file: `base64 -d keystore.b64 > android.keystore`
+
+(1Password, ~$3/month, stores the `.jks` directly as a Document if you prefer
+keeping the binary — but it isn't necessary.)
 
 Then put a **second copy somewhere offline** — an encrypted USB stick, or a
 printed base64 dump in a drawer. Two copies in two places. A single cloud account
@@ -156,6 +168,16 @@ you could be locked out of is one copy.
 
 Never email it to yourself, never put it in plain Drive/Dropbox, never commit it.
 `.gitignore` already blocks `*.keystore`, `*.jks` and `*.p12`.
+
+### If the keystore artifact already expired
+
+The artifact from **Generate Signing Keystore** only lasts a day. If it's gone and
+GitHub Secrets is now your only copy, run **Actions → Export Signing Keystore
+(backup)** and type `export`. That hands back the **existing** key, verifies the
+stored password actually opens it, and reports the fingerprint.
+
+Do not run *Generate Signing Keystore* again for this — it creates a **different**
+key, which cannot update an app published with the old one.
 
 ### Add it to GitHub
 
@@ -265,34 +287,29 @@ are the only two causes.
 
 ---
 
-## Step 7 — Closed testing: 12 testers, 14 days **(you)**
+## Step 7 — Closed testing **(not required here)**
 
-Only for personal accounts. This is the part people underestimate.
+**This step does not apply to this project.** Organization accounts verified with
+a D-U-N-S number are exempt from the 12-testers-for-14-days closed test, so you
+can publish straight to production.
 
-**Testing → Closed testing → Create release**, upload
-`app-release-bundle.aab`, and add testers by email — either a Google Group or a
-list of addresses.
+Kept here only so the requirement isn't a surprise if the account type ever
+changes: a personal account created after 13 Nov 2023 must run a closed test with
+**12 testers opted in continuously for 14 days** before it can apply for
+production access. Testers opting out and back in reset their own clock.
 
-The rules, precisely:
-
-- **12 testers minimum**, each with a real Google account
-- Each must **opt in** via your test link and **stay opted in for 14 consecutive
-  days**
-- Someone who opts out and back in **resets their own clock**
-- Installing and actually opening the app is what Google wants to see
-
-So: line up 12 people, send the opt-in link, and ask them not to leave the test.
-Friends, family, colleagues all count. After 14 days, **Dashboard → Apply for
-production access**.
-
-Expect Google to take another few days to review that application.
+If you want a trial run before going public anyway, an internal test
+(**Testing → Internal testing**) is available with no tester minimum and no
+waiting period — useful for checking the installed app behaves, particularly that
+it opens with no browser address bar.
 
 ---
 
 ## Step 8 — Go live **(you)**
 
-Once production access is granted: **Production → Create release**, upload the
-same AAB, write release notes, roll out.
+Once the organization account is verified and the listing is complete:
+**Production → Create release**, upload `app-release-bundle.aab`, write release
+notes, roll out.
 
 First review typically takes a few days. After that you're live.
 

@@ -226,4 +226,7 @@ jobs:
           name: qbli-${{ inputs.versionName }}-${{ inputs.versionCode }}-aab
           path: app-release-bundle.aab
           if-no-files-found: error
-          retention-days: 30
+          # Play organization verification takes 2-4 weeks, so a 30-day window
+          # tends to expire before the bundle is ever uploaded — which is exactly
+          # what happened to the first build.
+          retention-days: 90
